@@ -7,41 +7,39 @@ import numpy as np
 import io
 import logging
 import os
+from contextlib import asynccontextmanager
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-app = FastAPI(
-    title="Dogs vs Cats Classifier API",
-    description="API для классификации изображений собак и кошек",
-    version="1.0.0"
-)
-
 MODEL_PATH = "models/dogs_cats_cnn.keras"
 model = None
 
 
-@app.on_event("startup")
-async def load_model_start():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global model
     try:
         if not os.path.exists(MODEL_PATH):
             logger.warning(f"Model file not found at {MODEL_PATH}")
-            return
-            
-        logger.info(f"Loading model from {MODEL_PATH}...")
-        model = load_model(MODEL_PATH, compile=False)
-        model.compile(optimizer='adam', 
-              loss='binary_crossentropy', 
-              metrics=['accuracy'])
-
-        logger.info(f"Model successfully loaded from {MODEL_PATH}")
-        
+        else:
+            logger.info(f"Loading model from {MODEL_PATH}...")
+            model = load_model(MODEL_PATH)
+            logger.info(f"Model successfully loaded from {MODEL_PATH}")
     except Exception as e:
         logger.error(f"Error loading model: {e}")
         model = None
+    yield  
+
+
+app = FastAPI(
+    title="Dogs vs Cats Classifier API",
+    description="API для классификации изображений собак и кошек",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
 
 CLASS_NAMES = ["Cat", "Dog"]
