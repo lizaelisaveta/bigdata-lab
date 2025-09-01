@@ -48,7 +48,7 @@ jobs:
         context: .
         push: true
         tags: ${{ secrets.DOCKERHUB_USERNAME }}/dogs-vs-cats-api:latest
-        platforms: linux/amd64,linux/arm64 
+        platforms: linux/arm64 
 
   deploy-test:
     runs-on: ubuntu-latest
