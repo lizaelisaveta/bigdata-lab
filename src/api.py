@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 from tensorflow import keras
@@ -9,14 +10,21 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
+from src.config import app_config
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-MODEL_PATH = "models/dogs_cats_cnn.keras"
-model = None
+MODEL_PATH = app_config['paths']['model_path']
+IMG_HEIGHT = int(app_config['model']['input_height'])
+IMG_WIDTH = int(app_config['model']['input_width'])
+MAX_FILE_SIZE = int(app_config['api']['max_file_size'])
+API_PORT = int(app_config['api']['port'])
+API_HOST = app_config['api']['host']
 
+model = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -48,7 +56,7 @@ CLASS_NAMES = ["Cat", "Dog"]
 def preprocess_image(image_bytes):
     try:
         img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-        img = img.resize((150, 150))
+        img = img.resize((IMG_WIDTH, IMG_HEIGHT))
         img_array = np.array(img) / 255.0
         img_array = np.expand_dims(img_array, axis=0)
         return img_array
@@ -63,7 +71,8 @@ def activity_check():
     return {
         "status": "active" if model is not None else "model_not_loaded",
         "model_loaded": model is not None,
-        "model_path": MODEL_PATH
+        "model_path": MODEL_PATH,
+        "image_size": f"{IMG_WIDTH}x{IMG_HEIGHT}"
     }
 
 
@@ -78,8 +87,8 @@ async def predict(file: UploadFile = File(...)):
     try:
         contents = await file.read()
         
-        if len(contents) > 10 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+        if len(contents) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=400, detail=f"File too large (max {MAX_FILE_SIZE} bytes)")
         
         processed_image = preprocess_image(contents)
         prediction = model.predict(processed_image, verbose=0)
@@ -94,7 +103,8 @@ async def predict(file: UploadFile = File(...)):
             "filename": file.filename,
             "class": predicted_class,
             "confidence": round(confidence, 4),
-            "raw_prediction": float(confidence_score)
+            "raw_prediction": float(confidence_score),
+            "image_size": f"{IMG_WIDTH}x{IMG_HEIGHT}"
         })
     
     except HTTPException:
