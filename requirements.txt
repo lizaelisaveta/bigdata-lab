@@ -7,5 +7,6 @@ scikit-learn==1.7.1
 pytest==8.4.1
 python-multipart==0.0.20
 dvc==3.62.0
+dvc-s3==3.2.2
 tqdm==4.67.1
 httpx==0.28.1

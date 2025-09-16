@@ -3,6 +3,10 @@ version: '3.10'
 services:
   ml-api:
     build: .
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
     ports:
       - "8000:8000"
     environment:
